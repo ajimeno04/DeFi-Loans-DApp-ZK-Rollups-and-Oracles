@@ -11,11 +11,20 @@ abstract contract SupplyVaultBase is ReentrancyGuard {
     event CollateralDeposited(address indexed user, uint256 amount);
     event CollateralWithdrawn(address indexed user, uint256 amount);
 
+    /**
+     * @dev Constructor to initialize the SupplyVault with the collateral token.
+     * @param _token Address of the ERC20 token to be used as collateral.
+     */
     constructor(address _token) {
         require(_token != address(0), "Invalid token address");
         collateralToken = IERC20(_token);
     }
 
+    /**
+     * @dev Allows a user to deposit collateral tokens into the vault.
+     *      Updates the user's collateral balance and emits a deposit event.
+     * @param amount The amount of tokens to deposit.
+     */
     function deposit(uint256 amount) public virtual nonReentrant {
         require(amount > 0, "Amount must be greater than zero");
         require(
@@ -27,6 +36,11 @@ abstract contract SupplyVaultBase is ReentrancyGuard {
         emit CollateralDeposited(msg.sender, amount);
     }
 
+    /**
+     * @dev Allows a user to withdraw their collateral tokens from the vault.
+     *      Ensures the user has sufficient collateral before allowing withdrawal.
+     * @param amount The amount of tokens to withdraw.
+     */
     function withdraw(uint256 amount) public virtual nonReentrant {
         require(amount > 0, "Amount must be greater than zero");
         require(userCollateral[msg.sender] >= amount, "Insufficient collateral");
@@ -40,6 +54,12 @@ abstract contract SupplyVaultBase is ReentrancyGuard {
         emit CollateralWithdrawn(msg.sender, amount);
     }
 
+    /**
+     * @dev Reduces a user's collateral balance.
+     *      Typically used during liquidation processes to seize collateral.
+     * @param user Address of the user whose collateral is to be reduced.
+     * @param amount The amount of collateral to reduce.
+     */
     function reduceCollateral(address user, uint256 amount) external virtual nonReentrant {
         require(amount > 0, "Amount must be greater than zero");
         require(userCollateral[user] >= amount, "Insufficient collateral");
@@ -49,6 +69,11 @@ abstract contract SupplyVaultBase is ReentrancyGuard {
         emit CollateralWithdrawn(user, amount);
     }
 
+    /**
+     * @dev Returns the total collateral balance of a specific user.
+     * @param user Address of the user to query.
+     * @return The collateral balance of the user.
+     */
     function getCollateral(address user) public view returns (uint256) {
         return userCollateral[user];
     }
