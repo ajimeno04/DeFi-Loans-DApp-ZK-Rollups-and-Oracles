@@ -1,22 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+
 import "../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/ISupplyVault.sol";
 import "./interfaces/IPriceFeed.sol";
 
-
 abstract contract LoanVaultBase is ReentrancyGuard {
-    mapping(address => uint256) public userDebt; // Debt record per user
-    IERC20 public loanToken; // Token being loaned (e.g., USDC, DAI)
-    ISupplyVault public supplyVault; // Reference to the SupplyVault contract
-    IPriceFeed public priceFeed; // Chainlink price feed for collateral
+    mapping(address => uint256) public userDebt;
+    IERC20 public loanToken;
+    ISupplyVault public supplyVault;
+    IPriceFeed public priceFeed;
 
-    uint256 public constant COLLATERALIZATION_RATIO = 150; // 150% collateralization ratio
+    uint256 public constant COLLATERALIZATION_RATIO = 150;
 
     event LoanIssued(address indexed user, uint256 amount);
     event LoanRepaid(address indexed user, uint256 amount);
 
+    /**
+     * @dev Constructor to initialize the LoanVault with required dependencies.
+     * @param _loanToken Address of the token to be loaned (e.g., USDC, DAI).
+     * @param _supplyVault Address of the SupplyVault contract for collateral management.
+     * @param _priceFeed Address of the Chainlink PriceFeed contract for price data.
+     */
     constructor(
         address _loanToken,
         address _supplyVault,
@@ -31,15 +37,17 @@ abstract contract LoanVaultBase is ReentrancyGuard {
         priceFeed = IPriceFeed(_priceFeed);
     }
 
+    /**
+     * @dev Allows a user to borrow tokens based on their collateral.
+     *      Checks that the user has sufficient collateral to cover the loan.
+     * @param amount The amount of tokens to borrow.
+     */
     function issueLoan(uint256 amount) public virtual nonReentrant {
-        // Checks
         require(amount > 0, "Amount must be greater than zero");
         require(canBorrow(msg.sender, amount), "Insufficient collateral");
 
-        // Effects
         userDebt[msg.sender] += amount;
 
-        // Interactions
         require(
             loanToken.transfer(msg.sender, amount),
             "Loan transfer failed"
@@ -48,15 +56,17 @@ abstract contract LoanVaultBase is ReentrancyGuard {
         emit LoanIssued(msg.sender, amount);
     }
 
+    /**
+     * @dev Allows a user to repay their outstanding loan.
+     *      The debt balance of the user is reduced by the amount repaid.
+     * @param amount The amount of tokens to repay.
+     */
     function repayLoan(uint256 amount) public virtual nonReentrant {
-        // Checks
         require(amount > 0, "Amount must be greater than zero");
         require(userDebt[msg.sender] >= amount, "Amount exceeds debt");
 
-        // Effects
         userDebt[msg.sender] -= amount;
 
-        // Interactions
         require(
             loanToken.transferFrom(msg.sender, address(this), amount),
             "Repayment failed"
@@ -65,24 +75,33 @@ abstract contract LoanVaultBase is ReentrancyGuard {
         emit LoanRepaid(msg.sender, amount);
     }
 
+    /**
+     * @dev Checks if a user has sufficient collateral to borrow a specified amount.
+     *      Uses Chainlink PriceFeed to determine the current collateral value.
+     * @param user The address of the user.
+     * @param amount The amount the user wants to borrow.
+     * @return True if the user has sufficient collateral, false otherwise.
+     */
     function canBorrow(address user, uint256 amount) public view returns (bool) {
-        // Get the collateral balance of the user from the SupplyVault
         uint256 collateralBalance = supplyVault.getCollateral(user);
 
-        // Fetch the current collateral price in USD from Chainlink
         int256 collateralPrice = priceFeed.latestAnswer();
         require(collateralPrice > 0, "Invalid price from Chainlink");
 
-        // Calculate the total collateral value in USD
         uint256 collateralValueUSD = (collateralBalance *
-            uint256(collateralPrice)) / 1e8; // Adjust for Chainlink's 8 decimals
+            uint256(collateralPrice)) / 1e8;
 
-        // Calculate the required collateral for the requested loan amount
         uint256 requiredCollateral = (amount * COLLATERALIZATION_RATIO) / 100;
 
         return collateralValueUSD >= requiredCollateral;
     }
 
+    /**
+     * @dev Reduces the debt of a user by a specified amount.
+     *      This function is typically used during liquidations.
+     * @param user The address of the user whose debt is to be reduced.
+     * @param amount The amount by which to reduce the user's debt.
+     */
     function reduceDebt(address user, uint256 amount) external virtual nonReentrant {
         require(amount > 0, "Amount must be greater than zero");
         require(userDebt[user] >= amount, "Insufficient debt");
@@ -92,6 +111,11 @@ abstract contract LoanVaultBase is ReentrancyGuard {
         emit LoanRepaid(user, amount);
     }
 
+    /**
+     * @dev Returns the current debt of a user.
+     * @param user The address of the user.
+     * @return The current debt balance of the user.
+     */
     function getDebt(address user) public view returns (uint256) {
         return userDebt[user];
     }

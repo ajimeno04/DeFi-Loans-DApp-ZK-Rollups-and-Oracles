@@ -7,18 +7,17 @@ import "./interfaces/ISupplyVault.sol";
 import "./interfaces/IPriceFeed.sol";
 import "./interfaces/ILoanVault.sol";
 
-
 contract LiquidationManager is ReentrancyGuard {
     ISupplyVault public supplyVault;
     ILoanVault public loanVault;
     IPriceFeed public priceFeed;
 
-    uint256 public constant LIQUIDATION_THRESHOLD = 120; // 120% collateralization ratio
-    uint256 public constant LIQUIDATION_PENALTY = 10; // 10% penalty
-    uint256 public priceUpdateThreshold = 1 hours; // Max allowed staleness for price data
+    uint256 public constant LIQUIDATION_THRESHOLD = 120;
+    uint256 public constant LIQUIDATION_PENALTY = 10;
+    uint256 public priceUpdateThreshold = 1 hours;
 
-    mapping(address => uint256) public cachedPrices; // Cached prices for tokens
-    mapping(address => uint256) public priceTimestamps; // Last update timestamps for cached prices
+    mapping(address => uint256) public cachedPrices;
+    mapping(address => uint256) public priceTimestamps;
 
     event LoanLiquidated(
         address indexed borrower,
@@ -27,6 +26,12 @@ contract LiquidationManager is ReentrancyGuard {
         uint256 collateralSeized
     );
 
+    /**
+     * @dev Constructor to initialize the LiquidationManager with addresses for SupplyVault, LoanVault, and PriceFeed.
+     * @param _supplyVault Address of the SupplyVault contract.
+     * @param _loanVault Address of the LoanVault contract.
+     * @param _priceFeed Address of the Chainlink PriceFeed contract.
+     */
     constructor(
         address _supplyVault,
         address _loanVault,
@@ -41,6 +46,11 @@ contract LiquidationManager is ReentrancyGuard {
         priceFeed = IPriceFeed(_priceFeed);
     }
 
+    /**
+     * @dev Updates the cached price of the collateral token using the Chainlink PriceFeed.
+     *      Ensures the price is valid and recent.
+     * @param token Address of the collateral token to update the price for.
+     */
     function updatePrice(address token) external {
         int256 price = priceFeed.latestAnswer();
         require(price > 0, "Invalid price from Chainlink");
@@ -51,21 +61,37 @@ contract LiquidationManager is ReentrancyGuard {
         priceTimestamps[token] = block.timestamp;
     }
 
+    /**
+     * @dev Checks if the price data from the Chainlink feed is recent.
+     * @param lastUpdated Timestamp of the last price update from the feed.
+     * @return True if the price data is within the allowed threshold.
+     */
     function isPriceRecent(uint256 lastUpdated) internal view returns (bool) {
         return (block.timestamp - lastUpdated) <= priceUpdateThreshold;
     }
 
+    /**
+     * @dev Determines if a borrower's loan is under-collateralized based on the cached collateral price.
+     * @param borrower Address of the borrower to check.
+     * @return True if the collateralization ratio is below the liquidation threshold.
+     */
     function isUnderCollateralized(address borrower) public view returns (bool) {
         uint256 debt = loanVault.getDebt(borrower);
         uint256 collateral = supplyVault.getCollateral(borrower);
         uint256 price = cachedPrices[address(supplyVault)];
 
-        uint256 collateralValueUSD = (collateral * price) / 1e8; // Adjust for 8 decimals
+        uint256 collateralValueUSD = (collateral * price) / 1e8;
         uint256 collateralizationRatio = (collateralValueUSD * 100) / debt;
 
         return collateralizationRatio < LIQUIDATION_THRESHOLD;
     }
 
+    /**
+     * @dev Executes a liquidation for an under-collateralized borrower.
+     *      The liquidator repays part of the borrower's debt and seizes a discounted portion of their collateral.
+     * @param borrower Address of the borrower to liquidate.
+     * @param repayAmount Amount of the borrower's debt to repay.
+     */
     function liquidate(address borrower, uint256 repayAmount) external nonReentrant {
         require(isUnderCollateralized(borrower), "Loan is not under-collateralized");
 
@@ -86,4 +112,3 @@ contract LiquidationManager is ReentrancyGuard {
         emit LoanLiquidated(borrower, msg.sender, repayAmount, collateralToSeize);
     }
 }
-
