@@ -3,21 +3,10 @@ pragma solidity ^0.8.0;
 
 import "../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import "./interfaces/ISupplyVault.sol";
+import "./interfaces/IPriceFeed.sol";
+import "./interfaces/ILoanVault.sol";
 
-interface ISupplyVault {
-    function getCollateral(address user) external view returns (uint256);
-    function reduceCollateral(address user, uint256 amount) external;
-}
-
-interface ILoanVault {
-    function getDebt(address user) external view returns (uint256);
-    function reduceDebt(address user, uint256 amount) external;
-}
-
-interface IPriceFeed {
-    function latestAnswer() external view returns (int256);
-    function latestTimestamp() external view returns (uint256);
-}
 
 contract LiquidationManager is ReentrancyGuard {
     ISupplyVault public supplyVault;

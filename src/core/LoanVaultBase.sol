@@ -2,14 +2,9 @@
 pragma solidity ^0.8.0;
 import "../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import "./interfaces/ISupplyVault.sol";
+import "./interfaces/IPriceFeed.sol";
 
-interface ISupplyVault {
-    function getCollateral(address user) external view returns (uint256);
-}
-
-interface IPriceFeed {
-    function latestAnswer() external view returns (int256);
-}
 
 abstract contract LoanVaultBase is ReentrancyGuard {
     mapping(address => uint256) public userDebt; // Debt record per user
