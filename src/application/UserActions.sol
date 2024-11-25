@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../core/interfaces/ISupplyVault.sol";
-import "../core/interfaces/ILoanVault.sol";
-import "../core/interfaces/ILiquidationManager.sol";
+import "../interfaces/ISupplyVault.sol";
+import "../interfaces/ILoanVault.sol";
+import "../interfaces/ILiquidationManager.sol";
 
 contract UserActions {
     ISupplyVault public supplyVault;
