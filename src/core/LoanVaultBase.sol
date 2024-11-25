@@ -3,14 +3,15 @@ pragma solidity ^0.8.0;
 
 import "../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
-import "./interfaces/ISupplyVault.sol";
-import "./interfaces/IPriceFeed.sol";
+import "../interfaces/ISupplyVault.sol";
+import "../interfaces/IChainlinkFeeds.sol";
 
 abstract contract LoanVaultBase is ReentrancyGuard {
     mapping(address => uint256) public userDebt;
     IERC20 public loanToken;
     ISupplyVault public supplyVault;
-    IPriceFeed public priceFeed;
+    IChainlinkFeeds public chainLinkFeeds; 
+
 
     uint256 public constant COLLATERALIZATION_RATIO = 150;
 
@@ -21,20 +22,20 @@ abstract contract LoanVaultBase is ReentrancyGuard {
      * @dev Constructor to initialize the LoanVault with required dependencies.
      * @param _loanToken Address of the token to be loaned (e.g., USDC, DAI).
      * @param _supplyVault Address of the SupplyVault contract for collateral management.
-     * @param _priceFeed Address of the Chainlink PriceFeed contract for price data.
+     * @param _chainLinkFeeds Address of the Chainlink Price Feed abstraction to manage price data.
      */
     constructor(
         address _loanToken,
         address _supplyVault,
-        address _priceFeed
+        address _chainLinkFeeds
     ) {
         require(_loanToken != address(0), "Invalid loan token address");
         require(_supplyVault != address(0), "Invalid supply vault address");
-        require(_priceFeed != address(0), "Invalid price feed address");
+        require(_chainLinkFeeds != address(0), "Invalid price feed address");
 
         loanToken = IERC20(_loanToken);
         supplyVault = ISupplyVault(_supplyVault);
-        priceFeed = IPriceFeed(_priceFeed);
+        chainLinkFeeds = IChainlinkFeeds(_chainLinkFeeds);
     }
 
     /**
@@ -85,7 +86,7 @@ abstract contract LoanVaultBase is ReentrancyGuard {
     function canBorrow(address user, uint256 amount) public view returns (bool) {
         uint256 collateralBalance = supplyVault.getCollateral(user);
 
-        int256 collateralPrice = priceFeed.latestAnswer();
+        int256 collateralPrice = chainLinkFeeds.getLatestPrice();
         require(collateralPrice > 0, "Invalid price from Chainlink");
 
         uint256 collateralValueUSD = (collateralBalance *
