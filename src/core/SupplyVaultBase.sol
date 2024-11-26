@@ -20,21 +20,40 @@ contract SupplyVaultBase is ReentrancyGuard {
         collateralToken = IERC20(_token);
     }
 
-    /**
-     * @dev Allows a user to deposit collateral tokens into the vault.
-     *      Updates the user's collateral balance and emits a deposit event.
-     * @param amount The amount of tokens to deposit.
-     */
-    function deposit(uint256 amount) public virtual nonReentrant {
-        require(amount > 0, "Amount must be greater than zero");
-        require(
-            collateralToken.transferFrom(msg.sender, address(this), amount),
-            "Token transfer failed"
-        );
+   /**
+ * @dev Allows a user to deposit collateral tokens into the vault.
+ *      Updates the user's collateral balance and emits a deposit event.
+ * @param amount The amount of tokens to deposit.
+ */
+function deposit(uint256 amount) public virtual nonReentrant {
+    // Ensure the deposit amount is valid
+    require(amount > 0, "Deposit amount must be greater than zero");
 
-        userCollateral[msg.sender] += amount;
-        emit CollateralDeposited(msg.sender, amount);
-    }
+    // Check the sender's token balance
+    uint256 senderBalance = collateralToken.balanceOf(msg.sender);
+    require(senderBalance >= amount, "Insufficient token balance for deposit");
+
+    // Check the allowance provided by the sender
+    uint256 allowance = collateralToken.allowance(msg.sender, address(this));
+    require(
+        allowance >= amount,
+        "Allowance insufficient for transfer; approve more tokens"
+    );
+
+    // Attempt to transfer tokens from sender to the vault
+    bool transferSuccess = collateralToken.transferFrom(
+        msg.sender,
+        address(this),
+        amount
+    );
+    require(transferSuccess, "Token transfer failed due to contract error");
+
+    // Update the user's collateral balance
+    userCollateral[msg.sender] += amount;
+
+    // Emit an event to notify about the deposit
+    emit CollateralDeposited(msg.sender, amount);
+}
 
     /**
      * @dev Allows a user to withdraw their collateral tokens from the vault.

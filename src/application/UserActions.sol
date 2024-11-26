@@ -30,13 +30,26 @@ contract UserActions {
         liquidationManager = ILiquidationManager(_liquidationManager);
     }
 
-    /**
-     * @dev Deposits collateral into the SupplyVault on behalf of the user.
-     * @param amount Amount of tokens to deposit.
-     */
-    function depositCollateral(uint256 amount) external {
-        supplyVault.deposit(amount);
+/**
+ * @dev Deposits collateral into the SupplyVault on behalf of the user.
+ *      Validates the input and ensures the transaction will succeed before calling SupplyVault.
+ * @param amount Amount of tokens to deposit.
+ */
+function depositCollateral(uint256 amount) external {
+    // Check if the deposit amount is greater than zero
+    require(amount > 0, "Deposit amount must be greater than zero");
+
+    // Call the deposit function in the SupplyVault contract
+    try supplyVault.deposit(amount) {
+        // Successful deposit
+    } catch Error(string memory reason) {
+        // Revert with the error message from SupplyVault
+        revert(reason);
+    } catch {
+        // Fallback for unknown errors
+        revert("Unknown error occurred during deposit");
     }
+}
 
     /**
      * @dev Withdraws collateral from the SupplyVault for the user.
