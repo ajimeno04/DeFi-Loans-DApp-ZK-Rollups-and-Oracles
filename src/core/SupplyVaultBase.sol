@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
-abstract contract SupplyVaultBase is ReentrancyGuard {
+contract SupplyVaultBase is ReentrancyGuard {
     mapping(address => uint256) public userCollateral;
     IERC20 public collateralToken;
 

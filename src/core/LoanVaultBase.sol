@@ -6,7 +6,7 @@ import "../../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "../interfaces/ISupplyVault.sol";
 import "../interfaces/IChainlinkFeeds.sol";
 
-abstract contract LoanVaultBase is ReentrancyGuard {
+contract LoanVaultBase is ReentrancyGuard {
     mapping(address => uint256) public userDebt;
     IERC20 public loanToken;
     ISupplyVault public supplyVault;
